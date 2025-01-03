@@ -1,17 +1,30 @@
-from telegram.ext import Application, CommandHandler, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 from src.config.settings import TELEGRAM_TOKEN
-from src.handlers.error_handler import error_handler
+from src.handlers.start import start
+from src.handlers.menu import menu, handle_callback_query, handle_back
+from src.actions.connect import connect, handle_user_message
+from src.actions.chats import chats
 
+# Configuración del bot
 def start_bot():
-    app = Application.builder().token(TELEGRAM_TOKEN).build()
+    # Crear la aplicación del bot
+    application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
-    # Registro de comandos
-    app.add_handler(CommandHandler("start", help_command))
+    # Agregar el comando /start
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("menu", menu))
 
+    application.add_handler(CommandHandler("connect", connect))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_message))
 
-    # Manejo de errores
-    app.add_error_handler(error_handler)
+    application.add_handler(CommandHandler("chats", chats))  # Aquí se agrega el comando chats
 
-    # Inicio del bot
-    print("Bot iniciado...")
-    app.run_polling()
+    # Agregar los manejadores de callback con los patrones correctos
+    application.add_handler(CallbackQueryHandler(handle_callback_query, pattern='^(connect|chats)$'))
+    application.add_handler(CallbackQueryHandler(handle_back, pattern='^back$'))
+
+    application.add_handler(CallbackQueryHandler(handle_callback_query))
+
+    # Iniciar el bot
+    print("El bot está ejecutándose...")
+    application.run_polling()
