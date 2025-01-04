@@ -9,7 +9,8 @@ async def show_menu() -> InlineKeyboardMarkup:
     # Menú de opciones con botones
     menu = [
         [InlineKeyboardButton("Conectar", callback_data="connect")],
-        [InlineKeyboardButton("Chats", callback_data="chats")]
+        [InlineKeyboardButton("Chats", callback_data="chats")],
+        [InlineKeyboardButton("Redireccion", callback_data="redirection")]
     ]
     return InlineKeyboardMarkup(menu)
 
@@ -44,11 +45,30 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     elif query.data == "chats":
         # Aquí solo mostramos un mensaje sin llamar a la función chats
         await show_message_chats(update, context)
+    elif query.data == "redirection":
+        await show_message_redirection(update, context)
 
 
 # Función para mostrar un mensaje cuando se selecciona "Chats"
 async def show_message_chats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = "Has seleccionado la opción de *Chats*. Aquí iría la lógica para obtener los chats."
+
+    # Crear el botón "Volver" que llevará al menú principal
+    keyboard = [
+        [InlineKeyboardButton("Volver", callback_data="back")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # Enviar el mensaje con la acción seleccionada y el botón "Volver"
+    await update.callback_query.message.reply_text(  # Usamos query.message para responder al callback
+        message,
+        reply_markup=reply_markup,
+        parse_mode='Markdown'  # Esto permite que el texto se muestre con formato en Markdown
+    )
+
+# Función para mostrar un mensaje cuando se selecciona "Chats"
+async def show_message_redirection(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    message = "Has seleccionado la opción de *Redireccion*."
 
     # Crear el botón "Volver" que llevará al menú principal
     keyboard = [

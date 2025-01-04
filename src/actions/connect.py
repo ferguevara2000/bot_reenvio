@@ -1,3 +1,5 @@
+import re
+
 from telegram import Update
 from telegram.ext import ContextTypes
 from telethon.sync import TelegramClient
@@ -49,6 +51,10 @@ async def connect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # Función para manejar mensajes del usuario
 async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Verificar si el mensaje corresponde al formato de chat IDs
+    if re.match(r'^\d+ - \d+$', update.message.text):
+        return  # Ignorar, ya que será manejado por handle_chat_ids
+
     user_id = update.effective_user.id
 
     # Verificar si el usuario ha iniciado el proceso
