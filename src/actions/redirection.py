@@ -45,6 +45,7 @@ async def redirection(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     await insert_redirection_to_db(user_id, redirection_id)
 
 
+
 async def insert_redirection_to_db(user_id: int, redirection_id: str) -> None:
     url = f"{settings.URL_API}/rpc/insert_redirection"  # URL_API debe estar configurada en settings
     payload = {
