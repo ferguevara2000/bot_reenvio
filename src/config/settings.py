@@ -8,3 +8,5 @@ ALLOWED_USERS = os.getenv("ALLOWED_USERS", "").split(",")  # Lista de usuarios p
 API_ID = os.getenv("API_ID")
 API_HASH = os.getenv("API_HASH")
 SESSION_NAME = os.getenv("SESSION_NAME")
+URL_API = os.getenv("URL_API")
+API_KEY = os.getenv("API_KEY")

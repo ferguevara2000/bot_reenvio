@@ -1,8 +1,9 @@
+import requests
 from telethon import events
 from telegram import Update
 from telegram.ext import ContextTypes
-
 from src.actions.connect import get_telethon_client, ensure_connected
+from src.config import settings  # Asegúrate de que tengas el archivo de configuración para obtener URL_API
 
 # Diccionario para rastrear redirecciones por usuario
 user_redirections = {}
@@ -40,6 +41,33 @@ async def redirection(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         "`source - destination`"
     )
 
+    # Insertar la redirección en la base de datos (Supabase)
+    await insert_redirection_to_db(user_id, redirection_id)
+
+
+async def insert_redirection_to_db(user_id: int, redirection_id: str) -> None:
+    url = f"{settings.URL_API}/rpc/insert_redirection"  # URL_API debe estar configurada en settings
+    payload = {
+        "user_id": str(user_id),
+        "redirection_id": redirection_id
+    }
+    headers = {
+        "apikey": settings.API_KEY,  # Asegúrate de que tengas la clave de API
+        "Authorization": f"Bearer {settings.API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    # Realizar la solicitud POST a la API
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        if response.status_code == 200:
+            print(f"Redirección {redirection_id} guardada correctamente en la base de datos.")
+        else:
+            print(f"Error al guardar redirección: {response.status_code}")
+    except requests.exceptions.RequestException as e:
+        print(f"Error al hacer la solicitud a la API: {str(e)}")
+
+
 async def handle_chat_ids(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
     message_text = update.message.text
@@ -74,8 +102,37 @@ async def handle_chat_ids(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         f"Source: {source}\nDestination: {destination}"
     )
 
+    # Insertar los chats en la base de datos
+    await insert_chat_redirection_to_db(redirection_id=active_redirection, chat_id=source, role="source")
+    await insert_chat_redirection_to_db(redirection_id=active_redirection, chat_id=destination, role="destination")
+
     # Iniciar la redirección automáticamente
     await start_redirection(user_id, active_redirection)
+
+
+async def insert_chat_redirection_to_db(redirection_id: str, chat_id: int, role: str) -> None:
+    url = f"{settings.URL_API}/chats_redirection"  # URL_API debe estar configurada en settings
+    payload = {
+        "redireccion_id": redirection_id,
+        "chat_id": str(chat_id),
+        "role": role
+    }
+    headers = {
+        "apikey": settings.API_KEY,  # Asegúrate de que tengas la clave de API
+        "Authorization": f"Bearer {settings.API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    # Realizar la solicitud POST a la API
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        if response.status_code == 200:
+            print(f"Redirección de chat {role} ({chat_id}) guardada correctamente en la base de datos.")
+        else:
+            print(f"Error al guardar redirección de chat: {response.status_code}")
+    except requests.exceptions.RequestException as e:
+        print(f"Error al hacer la solicitud a la API: {str(e)}")
+
 
 async def start_redirection(user_id: int, redirection_id: str) -> None:
     redirection = user_redirections[user_id].get(redirection_id)

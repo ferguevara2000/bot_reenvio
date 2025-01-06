@@ -2,7 +2,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 from src.config.settings import TELEGRAM_TOKEN
 from src.handlers.start import start
 from src.handlers.menu import menu, handle_callback_query, handle_back
-from src.actions.connect import connect, handle_user_message
+from src.actions.connect import connect, handle_user_message, cancel_process
 from src.actions.chats import chats
 from src.actions.redirection import redirection, handle_chat_ids
 
@@ -31,6 +31,9 @@ def start_bot():
     # Agregar los manejadores de callback con los patrones correctos
     application.add_handler(CallbackQueryHandler(handle_callback_query, pattern='^(connect|chats)$'))
     application.add_handler(CallbackQueryHandler(handle_back, pattern='^back$'))
+
+    # Registrar el handler para el botón de cancelar
+    application.add_handler(CallbackQueryHandler(cancel_process, pattern="^cancel$"))
 
     application.add_handler(CallbackQueryHandler(handle_callback_query))
 
