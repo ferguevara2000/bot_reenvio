@@ -1,3 +1,5 @@
+import asyncio
+
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 from src.config.settings import TELEGRAM_TOKEN
 from src.handlers.start import start
@@ -8,6 +10,7 @@ from src.actions.redirection import redirection, handle_chat_ids
 
 # Configuración del bot
 def start_bot():
+
     # Crear la aplicación del bot
     application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
@@ -36,6 +39,20 @@ def start_bot():
     application.add_handler(CallbackQueryHandler(cancel_process, pattern="^cancel$"))
 
     application.add_handler(CallbackQueryHandler(handle_callback_query))
+
+    # Iniciar el bot
+    print("El bot está ejecutándose...")
+    application.run_polling()
+
+def main():
+
+    # Crear la aplicación del bot
+    application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+
+    application.add_handler(CommandHandler("chats", chats))  # Aquí se agrega el comando chats
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("menu", menu))
+    application.add_handler(CommandHandler("connect", connect))
 
     # Iniciar el bot
     print("El bot está ejecutándose...")

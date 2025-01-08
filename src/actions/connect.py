@@ -1,21 +1,23 @@
-import asyncio
 import os
 import re
 import requests
 import telethon
 import phonenumbers
-import psutil
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes
 from telethon.sync import TelegramClient
 from datetime import datetime, timedelta
 from src.config.settings import API_ID, API_HASH, URL_API, API_KEY
+from src.clients.client_manager import get_or_create_client
 
 # Diccionario para rastrear el estado de autenticación de cada usuario
 user_states = {}
 
 # Ruta base para guardar las sesiones de Telethon
 SESSIONS_PATH = "sessions"
+
+# Variable global para el cliente de Telethon
+telethon_client = None
 
 
 # Función para verificar si la sesión está activa y es completa
@@ -27,24 +29,14 @@ async def is_session_complete(user_id: int) -> bool:
         return False
 
     # Crear cliente de Telethon para verificar estado de autenticación
-    client = await get_telethon_client(user_id)
-    await ensure_connected(client)
+    global telethon_client
+    telethon_client = await get_or_create_client(user_id)
+    await ensure_connected(telethon_client)
 
     # Verificar si el usuario está autorizado (autenticado correctamente)
-    if await client.is_user_authorized():
+    if await telethon_client.is_user_authorized():
         return True
     return False
-
-# Función para crear un cliente Telethon para cada usuario
-async def get_telethon_client(user_id: int) -> TelegramClient:
-    session_name = os.path.join(SESSIONS_PATH, f"user_{user_id}")
-    client = TelegramClient(session_name, API_ID, API_HASH)
-    if not client.is_connected():
-        try:
-            await client.connect()
-        except Exception as e:
-            raise Exception(f"Error al conectar el cliente: {str(e)}")
-    return client
 
 
 async def ensure_connected(client: TelegramClient) -> None:
@@ -52,6 +44,7 @@ async def ensure_connected(client: TelegramClient) -> None:
         try:
             await client.connect()
         except Exception as e:
+            await client.disconnect()
             raise Exception(f"Error al conectar el cliente: {str(e)}")
 
 
@@ -216,10 +209,12 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 await telethon_client.disconnect()
 
             except Exception as e:
+                await telethon_client.disconnect()
                 await update.message.reply_text(f"Error al autenticar con 2FA: {str(e)}")
                 del user_states[user_id]
 
     except Exception as e:
+        await telethon_client.disconnect()
         await update.message.reply_text(f"Error: {str(e)}")
         del user_states[user_id]
 
@@ -287,7 +282,7 @@ async def cancel_process(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if user_id in user_states:
         try:
             # Obtener el cliente de Telethon para el usuario
-            telethon_client = await get_telethon_client(user_id)
+            telethon_client = await get_or_create_client(user_id)
 
             # Cerrar el cliente de Telethon
             await telethon_client.disconnect()

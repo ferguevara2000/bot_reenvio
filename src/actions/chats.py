@@ -1,11 +1,20 @@
+import os
+
 from telegram import Update
 from telegram.ext import ContextTypes
 from telethon.sync import TelegramClient
 from telethon.tl.types import Chat, User, Channel
 from src.config.settings import API_ID, API_HASH
-from src.actions.connect import get_telethon_client, ensure_connected
 import html  # Importa la librería para escapear caracteres especiales en HTML
+from src.clients.client_manager import get_or_create_client
 
+
+async def ensure_connected(client: TelegramClient) -> None:
+    if not client.is_connected():
+        try:
+            await client.connect()
+        except Exception as e:
+            raise Exception(f"Error al conectar el cliente: {str(e)}")
 
 async def chats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
@@ -16,7 +25,7 @@ async def chats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     try:
         # Obtener el cliente Telethon
-        telethon_client = await get_telethon_client(user_id)
+        telethon_client = await get_or_create_client(user_id)
         await ensure_connected(telethon_client)
 
         # Obtener los chats
