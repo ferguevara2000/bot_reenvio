@@ -1,4 +1,6 @@
 import os
+from numbers import Number
+
 import requests
 import aiohttp
 from telethon import events, TelegramClient
@@ -6,11 +8,13 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from src.config import settings  # Configuración con URL_API, API_KEY
 from src.config.settings import API_ID, API_HASH
+from src.clients.client_manager import get_or_create_client
 
 # Diccionario para rastrear redirecciones por usuario
 user_redirections = {}
 # Diccionario para almacenar los clientes de Telethon activos por usuario
 active_clients = {}
+active_redirections = {}
 
 async def start_redirection(user_id: int, redirection_id: str) -> None:
     # Obtener la redirección configurada para el usuario
@@ -24,7 +28,7 @@ async def start_redirection(user_id: int, redirection_id: str) -> None:
     # Comprobar si ya hay un cliente activo para este usuario
     if user_id not in active_clients:
         # Crear cliente Telethon si no existe uno activo
-        client = await get_telethon_client(user_id)
+        client = await get_or_create_client(user_id)
         await ensure_connected(client)
         active_clients[user_id] = client  # Guardar el cliente activo
     else:
@@ -82,33 +86,17 @@ async def redirection(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await insert_redirection_to_db(user_id, redirection_id)
 
     elif subcommand == "delete":
-        # Lógica para eliminar una redirección
-        if user_id not in user_redirections or redirection_id not in user_redirections[user_id]:
-            await update.message.reply_text(
-                f"No se encontró la redirección con ID '{redirection_id}' para tu usuario."
-            )
-            return
-
-        # Eliminar la redirección activa si existe
-        if user_id in active_redirections and redirection_id in active_redirections[user_id]:
-            del active_redirections[user_id][redirection_id]  # Eliminar del diccionario de redirecciones activas
-
-        # Eliminar del diccionario principal
-        del user_redirections[user_id][redirection_id]
-
-        # Desconectar el cliente si ya no quedan redirecciones
-        if not user_redirections[user_id]:
-            if user_id in active_clients:
-                client = active_clients[user_id]
-                await client.disconnect()  # Desconectar el cliente de Telethon
-                del active_clients[user_id]
-
         # Eliminar la redirección de la base de datos
-        await delete_redirection(user_id, redirection_id)
+        result = await delete_redirection(user_id, redirection_id)
 
-        await update.message.reply_text(
-            f"La redirección '{redirection_id}' ha sido eliminada con éxito."
-        )
+        if result == 204:
+            await update.message.reply_text(
+                f"La redirección '{redirection_id}' ha sido eliminada con éxito."
+            )
+        else:
+            await update.message.reply_text(
+                f"No se encontro la redirección '{redirection_id}'."
+            )
 
     else:
         # Subcomando inválido
@@ -168,6 +156,14 @@ async def handle_chat_ids(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return
 
+    # Buscar redirección incompleta
+    user_redirection = user_redirections.get(user_id)
+    if not user_redirection:
+        await update.message.reply_text(
+            "No tienes ninguna redirección en proceso. Usa el comando /redirection para comenzar."
+        )
+        return
+
     # Encontrar la redirección activa
     active_redirection = None
     for redirection_id, data in user_redirection.items():
@@ -186,7 +182,8 @@ async def handle_chat_ids(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     user_redirections[user_id][active_redirection]["destination"] = destination_chat_id
 
     # Guardar en la base de datos
-    await update_redirection_in_db(user_id, active_redirection, source_chat_id, destination_chat_id)
+    await insert_chat_redirection(user_id, active_redirection, source_chat_id, "source")
+    await insert_chat_redirection(user_id, active_redirection, destination_chat_id, "destination")
 
     # Iniciar la redirección
     await start_redirection(user_id, active_redirection)
@@ -195,17 +192,19 @@ async def handle_chat_ids(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         f"Redirección '{active_redirection}' configurada: {source_chat_id} -> {destination_chat_id}"
     )
 
-async def update_redirection_in_db(user_id: int, redirection_id: str, source: int, destination: int) -> None:
+async def insert_chat_redirection(user_id: int, redirection_id: str, chat_id: int, role: str) -> None:
     """
     Actualiza una redirección existente en la base de datos con los chats de origen y destino.
     """
-    url = f"{settings.URL_API}/rpc/update_redirection"
+    url = f"{settings.URL_API}/rpc/insert_chats_redirection"
     payload = {
-        "user_id": str(user_id),
-        "redirection_id": redirection_id,
-        "source_chat_id": str(source),
-        "destination_chat_id": str(destination),
+        "p_chat_id": str(chat_id),
+        "p_role": role,
+        "p_user_id": str(user_id),
+        "p_redirection_id": redirection_id,
     }
+
+    print(payload)
     headers = {
         "apikey": settings.API_KEY,
         "Authorization": f"Bearer {settings.API_KEY}",
@@ -214,22 +213,24 @@ async def update_redirection_in_db(user_id: int, redirection_id: str, source: in
 
     try:
         response = requests.post(url, json=payload, headers=headers)
-        if response.status_code == 200:
-            print(f"Redirección {redirection_id} actualizada correctamente en la base de datos.")
+        if response.status_code == 204:
+            print(f"Redirección {redirection_id} guardada correctamente en la base de datos.")
         else:
             print(f"Error al actualizar redirección: {response.status_code}")
     except requests.exceptions.RequestException as e:
         print(f"Error al hacer la solicitud a la API: {str(e)}")
 
-async def delete_redirection(user_id: int, redirection_id: str) -> None:
+async def delete_redirection(user_id: int, redirection_id: str) -> Number:
     """
     Elimina una redirección existente de la base de datos.
     """
+    # Verificar si la redirección existe en la base de datos antes de intentar eliminarla
     url = f"{settings.URL_API}/rpc/delete_redirection"
     payload = {
-        "user_id": str(user_id),
-        "redirection_id": redirection_id,
+        "redirection_id_input": redirection_id,
+        "user_id_input": str(user_id),
     }
+    print(payload)
     headers = {
         "apikey": settings.API_KEY,
         "Authorization": f"Bearer {settings.API_KEY}",
@@ -237,26 +238,21 @@ async def delete_redirection(user_id: int, redirection_id: str) -> None:
     }
 
     try:
+
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=payload, headers=headers) as response:
-                if response.status == 200:
+                if response.status == 204:
                     print(f"Redirección '{redirection_id}' eliminada correctamente de la base de datos.")
+                    await stop_redirection(user_id, redirection_id)
+                    return 204
+                elif response.status == 400:
+                    print(f"No se encontro la redireccion {redirection_id} asignada al usuario {user_id}")
+                    return 400
                 else:
                     print(f"Error al eliminar redirección '{redirection_id}': {response.status}")
     except aiohttp.ClientError as e:
         print(f"Error al hacer la solicitud a la API: {str(e)}")
 
-# Función para crear un cliente Telethon para cada usuario
-async def get_telethon_client(user_id: int) -> TelegramClient:
-    session_name = os.path.join("sessions", f"user_{user_id}")
-    client = TelegramClient(session_name, API_ID, API_HASH)
-    if not client.is_connected():
-        try:
-            await client.connect()
-        except Exception as e:
-            await client.disconnect()
-            raise Exception(f"Error al conectar el cliente: {str(e)}")
-    return client
 
 
 async def ensure_connected(client: TelegramClient) -> None:
@@ -265,3 +261,28 @@ async def ensure_connected(client: TelegramClient) -> None:
             await client.connect()
         except Exception as e:
             raise Exception(f"Error al conectar el cliente: {str(e)}")
+
+async def stop_redirection(user_id: int, redirection_id: str) -> None:
+    """
+    Detiene una redirección activa para el usuario y elimina su evento asociado.
+    """
+    if user_id not in active_clients:
+        print(f"No hay cliente activo para el usuario {user_id}.")
+        return
+
+    client = get_or_create_client(user_id)
+
+    # Buscar la redirección activa
+    if user_id in user_redirections and redirection_id in user_redirections[user_id]:
+        redirection = user_redirections[user_id][redirection_id]
+        source = redirection.get("source")
+
+        if source:
+            # Eliminar el evento asociado a la redirección
+            client.remove_event_handler(None, event=events.NewMessage(chats=source))
+            print(f"Redirección '{redirection_id}' detenida para el usuario {user_id}.")
+
+        # Eliminar la redirección de la lista
+        del user_redirections[user_id][redirection_id]
+    else:
+        print(f"Redirección '{redirection_id}' no encontrada para el usuario {user_id}.")
