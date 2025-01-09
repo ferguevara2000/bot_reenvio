@@ -2,8 +2,8 @@
 import time
 import aiohttp
 from telethon import events
-from src.clients.client_manager import get_or_create_client
-from src.config import settings  # Configuración con URL_API, API_KEY
+from ..clients.client_manager import get_or_create_client
+from ..config import settings  # Configuración con URL_API, API_KEY
 
 user_redirections = {}
 active_redirections = {}

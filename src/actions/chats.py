@@ -6,7 +6,7 @@ from telethon.sync import TelegramClient
 from telethon.tl.types import Chat, User, Channel
 from src.config.settings import API_ID, API_HASH
 import html  # Importa la librería para escapear caracteres especiales en HTML
-from src.clients.client_manager import get_or_create_client
+from ..clients.client_manager import get_or_create_client
 
 
 async def ensure_connected(client: TelegramClient) -> None:

@@ -1,7 +1,7 @@
 # src/client_manager.py
 import os
 from telethon import TelegramClient
-from src.config.settings import API_ID, API_HASH
+from ..config.settings import API_ID, API_HASH
 
 # Diccionario global para almacenar clientes por usuario
 clients = {}
