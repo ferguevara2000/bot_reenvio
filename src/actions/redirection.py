@@ -6,9 +6,9 @@ import aiohttp
 from telethon import events, TelegramClient
 from telegram import Update
 from telegram.ext import ContextTypes
-from ..config import settings  # Configuración con URL_API, API_KEY
+from src.config import settings  # Configuración con URL_API, API_KEY
 from src.config.settings import API_ID, API_HASH
-from ..clients.client_manager import get_or_create_client
+from src.clients.client_manager import get_or_create_client
 
 # Diccionario para rastrear redirecciones por usuario
 user_redirections = {}

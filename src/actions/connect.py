@@ -7,8 +7,8 @@ from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes
 from telethon.sync import TelegramClient
 from datetime import datetime, timedelta
-from ..config.settings import API_ID, API_HASH, URL_API, API_KEY
-from ..clients.client_manager import get_or_create_client
+from src.config.settings import API_ID, API_HASH, URL_API, API_KEY
+from src.clients.client_manager import get_or_create_client
 
 # Diccionario para rastrear el estado de autenticación de cada usuario
 user_states = {}
