@@ -1,12 +1,12 @@
 import asyncio
 
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
-from src.config.settings import TELEGRAM_TOKEN
-from src.handlers.start import start
-from src.handlers.menu import menu, handle_callback_query, handle_back
-from src.actions.connect import connect, handle_user_message, cancel_process
-from src.actions.chats import chats
-from src.actions.redirection import redirection, handle_chat_ids
+from config.settings import TELEGRAM_TOKEN
+from handlers.start import start
+from handlers.menu import menu, handle_callback_query, handle_back
+from actions.connect import connect, handle_user_message, cancel_process
+from actions.chats import chats
+from actions.redirection import redirection, handle_chat_ids
 
 # Configuración del bot
 def start_bot():
