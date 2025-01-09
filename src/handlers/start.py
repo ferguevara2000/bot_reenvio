@@ -6,8 +6,10 @@ from src.handlers.menu import show_menu
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Mensaje de bienvenida
     welcome_message = (
-        "¡Hola! Bienvenido al bot. 😊\n"
-        "Selecciona una opción del menú para comenzar:"
+        "¡Hola! Bienvenido. 😊\n"
+        "Si es la primera vez que usas el bot, selecciona primero la opción de Conectar.\n"
+        "Para comenzar, selecciona una opción en el menú.\n"
+        "Ahí encontrarás información detallada sobre cada comando disponible."
     )
 
     # Generar el menú

@@ -69,7 +69,8 @@ async def chats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     except Exception as e:
         if update.message:
-            await update.message.reply_text(f"❌ Error: {str(e)}")
+            print(f"Error: {str(e)}")
+            await update.message.reply_text(f"Hubo un error en obtener los chats. Intente nuevamente.")
     finally:
         # Eliminar el mensaje de "obteniendo chats" una vez completado
         if waiting_message:

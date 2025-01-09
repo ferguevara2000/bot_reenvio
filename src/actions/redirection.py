@@ -16,6 +16,9 @@ user_redirections = {}
 active_clients = {}
 active_redirections = {}
 
+# Diccionario para almacenar callbacks por usuario/redirección
+event_handlers = {}
+
 async def start_redirection(user_id: int, redirection_id: str) -> None:
     # Obtener la redirección configurada para el usuario
     redirection = user_redirections[user_id].get(redirection_id)
@@ -44,6 +47,11 @@ async def start_redirection(user_id: int, redirection_id: str) -> None:
             print(f"Error al redirigir mensaje: {str(e)}")
 
     print(f"Redirección '{redirection_id}' iniciada automáticamente: {source} -> {destination}")
+
+    # Guardar el callback asociado
+    if user_id not in event_handlers:
+        event_handlers[user_id] = {}
+    event_handlers[user_id][redirection_id] = forward_message
 
     # Ejecutar la conexión del cliente sin desconectarlo inmediatamente
     await client.start()
@@ -93,6 +101,11 @@ async def redirection(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             await update.message.reply_text(
                 f"La redirección '{redirection_id}' ha sido eliminada con éxito."
             )
+            if user_id in user_redirections and redirection_id in user_redirections[user_id]:
+                del user_redirections[user_id][redirection_id]
+            else:
+                print(f"El usuario {user_id} o la redirección {redirection_id} no existen.")
+
         else:
             await update.message.reply_text(
                 f"No se encontro la redirección '{redirection_id}'."
@@ -124,7 +137,7 @@ async def insert_redirection_to_db(user_id: int, redirection_id: str) -> None:
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=payload, headers=headers) as response:
-                if response.status == 200:
+                if response.status == 201:
                     print(f"Redirección {redirection_id} guardada correctamente en la base de datos.")
                 else:
                     print(f"Error al guardar redirección: {response.status}")
@@ -189,7 +202,9 @@ async def handle_chat_ids(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await start_redirection(user_id, active_redirection)
 
     await update.message.reply_text(
-        f"Redirección '{active_redirection}' configurada: {source_chat_id} -> {destination_chat_id}"
+        f"Redirección '{active_redirection}' configurada: \n"
+        f"Source: {source_chat_id} \n"
+        f"Destination: {destination_chat_id}"
     )
 
 async def insert_chat_redirection(user_id: int, redirection_id: str, chat_id: int, role: str) -> None:
@@ -238,12 +253,19 @@ async def delete_redirection(user_id: int, redirection_id: str) -> Number:
     }
 
     try:
+        source = await get_chat_id_from_api(user_id, redirection_id)
+        if source:
+            print("Source: " + source)
+            await stop_redirection(user_id, redirection_id, str(source))
+            print(f"Redirección {redirection_id} detenida para el usuario {user_id}")
+        else:
+            print(f'No se encontro la redireccion {redirection_id} para el usuario {user_id}')
 
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=payload, headers=headers) as response:
                 if response.status == 204:
                     print(f"Redirección '{redirection_id}' eliminada correctamente de la base de datos.")
-                    await stop_redirection(user_id, redirection_id)
+
                     return 204
                 elif response.status == 400:
                     print(f"No se encontro la redireccion {redirection_id} asignada al usuario {user_id}")
@@ -262,27 +284,63 @@ async def ensure_connected(client: TelegramClient) -> None:
         except Exception as e:
             raise Exception(f"Error al conectar el cliente: {str(e)}")
 
-async def stop_redirection(user_id: int, redirection_id: str) -> None:
+
+async def get_chat_id_from_api(user_id: int, redirection_id: str) -> str:
+    """
+    Consulta el chat_id de la redirección a través de la API.
+
+    :param user_id: ID del usuario.
+    :param redirection_id: ID de la redirección.
+    :return: ID del chat fuente asociado a la redirección.
+    """
+    url = f"{settings.URL_API}/rpc/get_chat_redirection_by_user_and_id"
+    payload = {
+        "redirection_id_input": redirection_id,
+        "user_id_input": str(user_id),
+    }
+    headers = {
+        "apikey": settings.API_KEY,
+        "Authorization": f"Bearer {settings.API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.post(url, json=payload, headers=headers) as response:
+                if response.status != 200:
+                    raise Exception(f"Error en la API: {response.status} - {await response.text()}")
+
+                # Leer directamente el texto de la respuesta
+                chat_id = await response.text()
+
+                return chat_id  # Convertir a entero antes de devolver
+
+        except Exception as e:
+            raise Exception(f"Error al consultar el chat_id desde la API: {e}")
+
+
+async def stop_redirection(user_id: int, redirection_id: str, source: str) -> None:
     """
     Detiene una redirección activa para el usuario y elimina su evento asociado.
+
+    :param source:
+    :param user_id: ID del usuario que solicita detener la redirección.
+    :param redirection_id: ID de la redirección a detener.
     """
-    if user_id not in active_clients:
-        print(f"No hay cliente activo para el usuario {user_id}.")
-        return
+    try:
 
-    client = get_or_create_client(user_id)
+        # Obtener o crear el cliente de Telegram
+        client = await get_or_create_client(user_id)
 
-    # Buscar la redirección activa
-    if user_id in user_redirections and redirection_id in user_redirections[user_id]:
-        redirection = user_redirections[user_id][redirection_id]
-        source = redirection.get("source")
+        # Recuperar el callback almacenado
+        callback = event_handlers.get(user_id, {}).get(redirection_id)
+        if callback is None:
+            print(f"No se encontró un callback para la redirección '{redirection_id}' del usuario {user_id}.")
+            return
 
-        if source:
-            # Eliminar el evento asociado a la redirección
-            client.remove_event_handler(None, event=events.NewMessage(chats=source))
-            print(f"Redirección '{redirection_id}' detenida para el usuario {user_id}.")
+        # Eliminar el evento asociado a la redirección
+        client.remove_event_handler(callback, event=events.NewMessage(chats=source))
+        print(f"Redirección '{redirection_id}' detenida para el usuario {user_id}.")
+    except Exception as e:
+        print(f"Error al detener la redirección '{redirection_id}' para el usuario {user_id}: {e}")
 
-        # Eliminar la redirección de la lista
-        del user_redirections[user_id][redirection_id]
-    else:
-        print(f"Redirección '{redirection_id}' no encontrada para el usuario {user_id}.")

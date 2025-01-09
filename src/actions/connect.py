@@ -63,7 +63,7 @@ async def connect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_states[user_id] = {"stage": "phone"}  # Iniciar en la etapa de teléfono
 
     # Solicitar el número de teléfono
-    phone_message = "Por favor, introduce tu número de teléfono en formato internacional (+123456789):"
+    phone_message = "Por favor, introduce tu número de teléfono en formato internacional (por ejemplo, +123456789). Asegúrate de incluir el símbolo '+' seguido del código de tu país y tu número completo. Si no recuerdas tu número, puedes consultarlo en Telegram: Settings > Phone Number."
     if update.message:  # Si es un mensaje de texto directo
         await update.message.reply_text(phone_message)
     elif update.callback_query:  # Si es un callback query (por ejemplo, clic en un botón)
@@ -85,7 +85,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     state = user_states[user_id]
-    telethon_client = await get_telethon_client(user_id)
+    telethon_client = await get_or_create_client(user_id)
 
     try:
         # Asegurar conexión antes de cualquier operación
@@ -104,8 +104,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 state["phone"] = phone
                 # Solicitar el código de verificación
                 await update.message.reply_text(
-                    "Espera unos momentos mientras te llega el código de verificación. "
-                    "Una vez recibido, introdúcelo con el prefijo 'aa' (por ejemplo, aa12345).",
+                    "Telegram no permite compartir este código directamente. Por seguridad, siempre agrégale el prefijo indicado antes de enviarlo.",
                     reply_markup=InlineKeyboardMarkup([
                         [InlineKeyboardButton("Cancelar Conexión", callback_data="cancel")]
                     ])
@@ -166,7 +165,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                         name=name,
                         phone=phone
                     )
-                    await update.message.reply_text(api_response)
+                    print(api_response)
                 except Exception as e:
                     await update.message.reply_text(f"Error al sincronizar con la API: {str(e)}")
                 del user_states[user_id]
@@ -202,7 +201,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                     name=name,
                     phone=state["phone"]
                 )
-                await update.message.reply_text(api_response)
+                print(api_response)
                 del user_states[user_id]
 
                 # Cerrar cliente
@@ -264,7 +263,7 @@ async def create_or_update_user_in_api(user_id, username, name, phone):
 
                 # Verificar que el cuerpo de la respuesta tenga el valor 201
                 if json_response == 201:
-                    return ""
+                    return f"Usuario creado con exito {json_response}"
                 else:
                     return f"Error: La respuesta no contiene el código esperado (201). Respuesta: {json_response}"
             else:

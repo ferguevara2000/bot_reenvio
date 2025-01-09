@@ -18,7 +18,8 @@ async def show_menu() -> InlineKeyboardMarkup:
 # Función para mostrar el menú
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Mensaje para mostrar el menú
-    menu_message = "Aquí tienes el menú principal:"
+    menu_message = ("📋 MENU PRINCIPAL\n\n"
+                    "Selecciona una opcion para continuar:")
 
     # Generar el menú
     reply_markup = await show_menu()
@@ -39,9 +40,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 
     if query.data == "connect":
         # Simular el envío del comando /connect
-        await connect(update, context)  # Llamar a la función /connect
-        # Mostrar mensaje con un botón "Volver" al menú
-        await show_back_button(update, context, "Conexión establecida")
+        await show_message_connect(update, context)
     elif query.data == "chats":
         # Aquí solo mostramos un mensaje sin llamar a la función chats
         await show_message_chats(update, context)
@@ -51,7 +50,9 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 
 # Función para mostrar un mensaje cuando se selecciona "Chats"
 async def show_message_chats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    message = "Has seleccionado la opción de *Chats*. Aquí iría la lógica para obtener los chats."
+    message = ("Has seleccionado la opción de *Chats*.\n\n"
+               "Escribe el siguiente comando para visualizar el id de tus chats:\n\n"
+            "```/chats```")
 
     # Crear el botón "Volver" que llevará al menú principal
     keyboard = [
@@ -68,7 +69,11 @@ async def show_message_chats(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 # Función para mostrar un mensaje cuando se selecciona "Chats"
 async def show_message_redirection(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    message = "Has seleccionado la opción de *Redireccion*."
+    message = ("Has seleccionado la opción de *Redireccion*.\n\n"
+               "Para agregar una nueva redirección usa el siguiente comando:\n\n"
+                "``` /redirection add NOMBRE_DE_LA_REDIRECCION```\n\n"
+               "Para eliminar una redirección usa el siguiente comando:\n\n"
+               "``` /redirection delete NOMBRE_DE_LA_REDIRECCION```\n\n")
 
     # Crear el botón "Volver" que llevará al menú principal
     keyboard = [
@@ -83,6 +88,23 @@ async def show_message_redirection(update: Update, context: ContextTypes.DEFAULT
         parse_mode='Markdown'  # Esto permite que el texto se muestre con formato en Markdown
     )
 
+async def show_message_connect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    message = ("Has seleccionado la opción de *Conectar* para vincular tu cuenta de Telegram con el bot.\n\n"
+            "Escribe el siguiente comando para comenzar el proceso de conexión:\n\n"
+            "```/connect```")
+
+    # Crear el botón "Volver" que llevará al menú principal
+    keyboard = [
+        [InlineKeyboardButton("Volver", callback_data="back")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # Enviar el mensaje con la acción seleccionada y el botón "Volver"
+    await update.callback_query.message.reply_text(  # Usamos query.message para responder al callback
+        message,
+        reply_markup=reply_markup,
+        parse_mode='Markdown'  # Esto permite que el texto se muestre con formato en Markdown
+    )
 
 # Función para mostrar un mensaje con el botón "Volver" al menú
 async def show_back_button(update: Update, context: ContextTypes.DEFAULT_TYPE, message: str) -> None:
