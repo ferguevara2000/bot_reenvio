@@ -1,4 +1,5 @@
 import os
+import re
 from numbers import Number
 
 import requests
@@ -8,16 +9,13 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from src.config import settings  # Configuración con URL_API, API_KEY
 from src.config.settings import API_ID, API_HASH
-from src.clients.client_manager import get_or_create_client
+from src.clients.client_manager import get_or_create_client, event_handlers
 
 # Diccionario para rastrear redirecciones por usuario
 user_redirections = {}
 # Diccionario para almacenar los clientes de Telethon activos por usuario
 active_clients = {}
 active_redirections = {}
-
-# Diccionario para almacenar callbacks por usuario/redirección
-event_handlers = {}
 
 async def start_redirection(user_id: int, redirection_id: str) -> None:
     # Obtener la redirección configurada para el usuario
@@ -45,6 +43,7 @@ async def start_redirection(user_id: int, redirection_id: str) -> None:
             await client.send_message(destination, event.message)
         except Exception as e:
             print(f"Error al redirigir mensaje: {str(e)}")
+            return
 
     print(f"Redirección '{redirection_id}' iniciada automáticamente: {source} -> {destination}")
 
@@ -152,9 +151,13 @@ async def handle_chat_ids(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     user_id = update.effective_user.id
     message_text = update.message.text.strip()
 
-    # Validar el formato 'source - destination'
+    # Validar el formato 'source - destination' o 'source-destination'
     try:
-        source_chat_id, destination_chat_id = map(int, message_text.split(" - "))
+        match = re.match(r"^(\d+)\s*-\s*(\d+)$", message_text)
+        if not match:
+            raise ValueError("Formato inválido")
+
+        source_chat_id, destination_chat_id = map(int, match.groups())
     except ValueError:
         await update.message.reply_text(
             "Formato inválido. Usa el formato:\n`source - destination`"
@@ -254,8 +257,7 @@ async def delete_redirection(user_id: int, redirection_id: str) -> Number:
 
     try:
         source = await get_chat_id_from_api(user_id, redirection_id)
-        if source:
-            print("Source: " + source)
+        if source is not None:
             await stop_redirection(user_id, redirection_id, str(source))
             print(f"Redirección {redirection_id} detenida para el usuario {user_id}")
         else:
@@ -285,7 +287,7 @@ async def ensure_connected(client: TelegramClient) -> None:
             raise Exception(f"Error al conectar el cliente: {str(e)}")
 
 
-async def get_chat_id_from_api(user_id: int, redirection_id: str) -> str:
+async def get_chat_id_from_api(user_id: int, redirection_id: str) -> str | None:
     """
     Consulta el chat_id de la redirección a través de la API.
 
@@ -308,7 +310,7 @@ async def get_chat_id_from_api(user_id: int, redirection_id: str) -> str:
         try:
             async with session.post(url, json=payload, headers=headers) as response:
                 if response.status != 200:
-                    raise Exception(f"Error en la API: {response.status} - {await response.text()}")
+                    return None
 
                 # Leer directamente el texto de la respuesta
                 chat_id = await response.text()

@@ -2,7 +2,7 @@
 import time
 import aiohttp
 from telethon import events
-from src.clients.client_manager import get_or_create_client
+from src.clients.client_manager import get_or_create_client, event_handlers
 from src.config import settings  # Configuración con URL_API, API_KEY
 
 user_redirections = {}
@@ -81,6 +81,12 @@ async def start_redirection(user_id: int, redirection_id: str) -> None:
             await client.send_message(destination, event.message)
         except Exception as e:
             print(f"Error al redirigir mensaje: {str(e)}")
+            return
+
+    # Guardar el callback asociado
+    if user_id not in event_handlers:
+        event_handlers[user_id] = {}
+    event_handlers[user_id][redirection_id] = forward_message
 
     print(f"Redirección '{redirection_id}' iniciada automáticamente: {source} -> {destination}")
 

@@ -7,14 +7,11 @@ from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes
 from telethon.sync import TelegramClient
 from datetime import datetime, timedelta
-from src.config.settings import API_ID, API_HASH, URL_API, API_KEY
+from src.config.settings import API_ID, API_HASH, URL_API, API_KEY, SESSIONS_PATH
 from src.clients.client_manager import get_or_create_client
 
 # Diccionario para rastrear el estado de autenticación de cada usuario
 user_states = {}
-
-# Ruta base para guardar las sesiones de Telethon
-SESSIONS_PATH = "sessions"
 
 # Variable global para el cliente de Telethon
 telethon_client = None
