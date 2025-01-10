@@ -7,7 +7,7 @@ from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes
 from telethon.sync import TelegramClient
 from datetime import datetime, timedelta
-from src.config.settings import API_ID, API_HASH, URL_API, API_KEY, SESSIONS_PATH
+from src.config.settings import API_ID, API_HASH, URL_API, API_KEY, SESSION_PATH
 from src.clients.client_manager import get_or_create_client
 
 # Diccionario para rastrear el estado de autenticación de cada usuario
@@ -19,7 +19,7 @@ telethon_client = None
 
 # Función para verificar si la sesión está activa y es completa
 async def is_session_complete(user_id: int) -> bool:
-    session_file = os.path.join(SESSIONS_PATH, f"user_{user_id}.session")
+    session_file = os.path.join(SESSION_PATH, f"user_{user_id}.session")
 
     # Verificar si el archivo de sesión existe
     if not os.path.exists(session_file):
