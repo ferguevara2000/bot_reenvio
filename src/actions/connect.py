@@ -101,6 +101,8 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 state["phone"] = phone
                 # Solicitar el código de verificación
                 await update.message.reply_text(
+                    "Espera unos momentos mientras te llega el código de verificación. \n"                    
+                    "Una vez recibido, introdúcelo con el prefijo 'aa' (por ejemplo, aa12345).\n\n"
                     "Telegram no permite compartir este código directamente. Por seguridad, siempre agrégale el prefijo indicado antes de enviarlo.",
                     reply_markup=InlineKeyboardMarkup([
                         [InlineKeyboardButton("Cancelar Conexión", callback_data="cancel")]
