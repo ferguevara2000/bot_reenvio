@@ -36,13 +36,27 @@ async def start_redirection(user_id: int, redirection_id: str) -> None:
         # Usar el cliente ya existente
         client = active_clients[user_id]
 
-    # Registrar el evento de la redirección
+    # Registrar el evento para nuevos mensajes
     @client.on(events.NewMessage(chats=source))
     async def forward_message(event):
         try:
-            await client.send_message(destination, event.message)
+            message = await client.send_message(destination, event.message)
+            # Guardar el ID del mensaje clonado para ediciones futuras
+            active_redirections[event.message.id] = message.id
         except Exception as e:
             print(f"Error al redirigir mensaje: {str(e)}")
+            return
+
+    # Registrar el evento para mensajes editados
+    @client.on(events.MessageEdited(chats=source))
+    async def edit_forwarded_message(event):
+        try:
+            original_message_id = event.message.id
+            if original_message_id in active_redirections:
+                cloned_message_id = active_redirections[original_message_id]
+                await client.edit_message(destination, cloned_message_id, event.text)
+        except Exception as e:
+            print(f"Error al editar mensaje redirigido: {str(e)}")
             return
 
     print(f"Redirección '{redirection_id}' iniciada automáticamente: {source} -> {destination}")
@@ -50,7 +64,7 @@ async def start_redirection(user_id: int, redirection_id: str) -> None:
     # Guardar el callback asociado
     if user_id not in event_handlers:
         event_handlers[user_id] = {}
-    event_handlers[user_id][redirection_id] = forward_message
+    event_handlers[user_id][redirection_id] = (forward_message, edit_forwarded_message)
 
     # Ejecutar la conexión del cliente sin desconectarlo inmediatamente
     await client.start()
