@@ -90,7 +90,7 @@ async def show_message_redirection(update: Update, context: ContextTypes.DEFAULT
 
 async def show_message_connect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = ("Has seleccionado la opción de *Conectar* para vincular tu cuenta de Telegram con el bot.\n\n"
-            "Escribe el siguiente comando para comenzar el proceso de conexión:\n\n"
+            "Escribe el siguiente comando para comenzar el proceso de conexión: \n\n"
             "```/connect```")
 
     # Crear el botón "Volver" que llevará al menú principal
