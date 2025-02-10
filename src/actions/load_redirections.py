@@ -83,6 +83,15 @@ async def start_redirection(user_id: int, redirection_id: str) -> None:
             print(f"Error al redirigir mensaje: {str(e)}")
             return
 
+    # Detectar mensajes editados
+    @client.on(events.MessageEdited(chats=source))
+    async def forward_edited_message(event):
+        try:
+            await client.send_message(destination, f"{event.message.text}")
+        except Exception as e:
+            print(f"Error al redirigir mensaje editado: {str(e)}")
+            return
+
     # Guardar el callback asociado
     if user_id not in event_handlers:
         event_handlers[user_id] = {}
