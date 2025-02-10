@@ -19,7 +19,7 @@ async def show_menu() -> InlineKeyboardMarkup:
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Mensaje para mostrar el menú
     menu_message = ("📋 MENU PRINCIPAL\n\n"
-                    "Selecciona una opcion para continuar:")
+                    "Por favor, selecciona una opción para continuar:")
 
     # Generar el menú
     reply_markup = await show_menu()
