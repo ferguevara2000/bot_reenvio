@@ -40,6 +40,7 @@ async def start_redirection(user_id: int, redirection_id: str) -> None:
     @client.on(events.NewMessage(chats=source))
     async def forward_message(event):
         try:
+            # Enviar el mensaje al destino
             message = await client.send_message(destination, event.message)
             # Guardar el ID del mensaje clonado para ediciones futuras
             active_redirections[event.message.id] = message.id
@@ -52,19 +53,63 @@ async def start_redirection(user_id: int, redirection_id: str) -> None:
     async def edit_forwarded_message(event):
         try:
             original_message_id = event.message.id
+
             if original_message_id in active_redirections:
                 cloned_message_id = active_redirections[original_message_id]
-                await client.edit_message(destination, cloned_message_id, event.text)
+
+                # Verificar si el mensaje editado tiene multimedia
+                if event.message.media:
+                    # Editar el mensaje multimedia reemplazándolo con el nuevo archivo
+                    await client.edit_message(
+                        destination,
+                        cloned_message_id,
+                        file=event.message.media,  # Nuevo archivo multimedia
+                        text=event.message.text  # Texto del mensaje
+                    )
+                else:
+                    # Editar solo el texto si no hay multimedia
+                    await client.edit_message(destination, cloned_message_id, text=event.message.text)
+
         except Exception as e:
             print(f"Error al editar mensaje redirigido: {str(e)}")
-            return
+
+    # Registrar el evento para respuestas a mensajes
+    @client.on(events.NewMessage(chats=source))
+    async def reply_forwarded_message(event):
+        try:
+            # Verificar si el mensaje es una respuesta a otro mensaje
+            if event.message.is_reply:
+                replied_message = await event.get_reply_message()
+                original_message_id = replied_message.id
+
+                # Verificar si el mensaje original está en active_redirections
+                if original_message_id in active_redirections:
+                    cloned_message_id = active_redirections[original_message_id]
+
+                    # Enviar la respuesta al mensaje clonado en el destino
+                    if event.message.media:
+                        await client.send_message(
+                            destination,
+                            file=event.message.media,
+                            message=event.message.text,
+                            reply_to=cloned_message_id  # Responder al mensaje clonado
+                        )
+                    else:
+                        await client.send_message(
+                            destination,
+                            message=event.message.text,
+                            reply_to=cloned_message_id  # Responder al mensaje clonado
+                        )
+
+        except Exception as e:
+            print(f"Error al replicar respuesta: {str(e)}")
 
     print(f"Redirección '{redirection_id}' iniciada automáticamente: {source} -> {destination}")
 
-    # Guardar el callback asociado
+    # Guardar los callbacks asociados
     if user_id not in event_handlers:
         event_handlers[user_id] = {}
-    event_handlers[user_id][redirection_id] = (forward_message, edit_forwarded_message)
+    event_handlers[user_id][redirection_id] = (forward_message, edit_forwarded_message, reply_forwarded_message)
 
     # Ejecutar la conexión del cliente sin desconectarlo inmediatamente
     await client.start()
@@ -233,7 +278,7 @@ async def insert_chat_redirection(user_id: int, redirection_id: str, chat_id: in
         "p_chat_id": str(chat_id),
         "p_role": role,
         "p_user_id": str(user_id),
-        "p_redirection_id": redirection_id,
+        "p_redirection_id": f"{user_id}_{redirection_id}",
     }
 
     print(payload)
